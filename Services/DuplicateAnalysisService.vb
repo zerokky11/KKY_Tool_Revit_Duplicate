@@ -52,9 +52,11 @@ Namespace Services
             ' 그룹핑 키 생성
             Dim groups As New Dictionary(Of String, List(Of Element))(StringComparer.Ordinal)
             For Each e In elems
-                Dim key As String = BuildGroupKey(e)
-                If Not groups.ContainsKey(key) Then groups(key) = New List(Of Element)()
-                groups(key).Add(e)
+                If ShouldSkipInsulation(e) Then Continue For ' 인슐레이션은 대상 제외
+
+                Dim groupKey As String = BuildGroupKey(e) ' key 변수 이름 충돌 경고 방지
+                If Not groups.ContainsKey(groupKey) Then groups(groupKey) = New List(Of Element)()
+                groups(groupKey).Add(e)
             Next
 
             ' 결과로 평탄화
@@ -89,7 +91,7 @@ Namespace Services
 
                     Dim d As New Dictionary(Of String, Object)(StringComparer.OrdinalIgnoreCase) From {
                         {"groupId", gno},
-                        {"id", e.Id.IntegerValue.ToString()},
+                        {"id", Infrastructure.ElementIdCompat.IntValue(e.Id).ToString()},
                         {"category", cat},
                         {"family", fam},
                         {"type", typ},
@@ -156,13 +158,26 @@ Namespace Services
                 Dim fi = DirectCast(e, FamilyInstance)
                 typ = If(fi.Symbol IsNot Nothing, fi.Symbol.Name, "")
                 fam = If(fi.Symbol IsNot Nothing AndAlso fi.Symbol.Family IsNot Nothing, fi.Symbol.Family.Name, "")
+
+                If IsStructuralFoundation(e) Then
+                    Try
+                        Dim bb = e.BoundingBox(Nothing)
+                        If bb IsNot Nothing Then
+                            Dim center As New XYZ((bb.Min.X + bb.Max.X) / 2.0, (bb.Min.Y + bb.Max.Y) / 2.0, (bb.Min.Z + bb.Max.Z) / 2.0)
+                            Dim foundationKey = $"{R2(center.X)}_{R2(center.Y)}_{R2(center.Z)}" ' 이름 숨김 방지를 위해 분리
+                            Return $"{cat}|{fam}|{typ}|{foundationKey}"
+                        End If
+                    Catch
+                    End Try
+                End If
+
                 Dim lp = TryCast(e.Location, LocationPoint)
                 If lp Is Nothing OrElse lp.Point Is Nothing Then
                     Return $"{cat}|{fam}|{typ}|NOLOC"
                 End If
                 Dim p = lp.Point
-                Dim keyp = $"{R2(p.X)}_{R2(p.Y)}_{R2(p.Z)}"
-                Return $"{cat}|{fam}|{typ}|{keyp}"
+                Dim locKey = $"{R2(p.X)}_{R2(p.Y)}_{R2(p.Z)}"
+                Return $"{cat}|{fam}|{typ}|{locKey}"
             Else
                 ' MEPCurve
                 typ = e.Name
@@ -219,14 +234,49 @@ Namespace Services
                     For Each ro In refs
                         Dim rc As Connector = TryCast(ro, Connector)
                         If rc Is Nothing OrElse rc.Owner Is Nothing Then Continue For
-                        Dim oid As Integer = rc.Owner.Id.IntegerValue
-                        If oid <> e.Id.IntegerValue Then setIds.Add(oid)
+                        Dim oid As Integer = Infrastructure.ElementIdCompat.IntValue(rc.Owner.Id)
+                        If oid <> Infrastructure.ElementIdCompat.IntValue(e.Id) Then setIds.Add(oid)
                     Next
                 Next
             Catch
             End Try
 
             Return setIds
+        End Function
+
+        ''' <summary>덕트/파이프 인슐레이션 스킵 여부</summary>
+        Private Shared Function ShouldSkipInsulation(e As Element) As Boolean
+            If e Is Nothing Then Return True
+
+            Try
+                If TypeOf e Is DuctInsulation OrElse TypeOf e Is PipeInsulation Then
+                    Return True
+                End If
+            Catch
+            End Try
+
+            Try
+                If e.Category IsNot Nothing Then
+                    Dim bic = CType(Infrastructure.ElementIdCompat.IntValue(e.Category.Id), BuiltInCategory)
+                    If bic = BuiltInCategory.OST_DuctInsulations OrElse bic = BuiltInCategory.OST_PipeInsulations Then
+                        Return True
+                    End If
+                End If
+            Catch
+            End Try
+
+            Return False
+        End Function
+
+        ''' <summary>구조 기초 카테고리 여부</summary>
+        Private Shared Function IsStructuralFoundation(e As Element) As Boolean
+            Try
+                If e Is Nothing OrElse e.Category Is Nothing Then Return False
+                Dim bic = CType(Infrastructure.ElementIdCompat.IntValue(e.Category.Id), BuiltInCategory)
+                Return bic = BuiltInCategory.OST_StructuralFoundation
+            Catch
+            End Try
+            Return False
         End Function
 
     End Class
