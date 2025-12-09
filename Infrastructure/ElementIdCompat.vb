@@ -1,4 +1,5 @@
-﻿Imports Autodesk.Revit.DB
+Imports System.Runtime.CompilerServices
+Imports Autodesk.Revit.DB
 
 Namespace Infrastructure
 
@@ -7,12 +8,13 @@ Namespace Infrastructure
     ''' - 2019~2023: IntegerValue / New ElementId(Integer)
     ''' - 2025: Value / New ElementId(Long)
     ''' </summary>
-    Friend Module ElementIdCompat
+    ' 확장 메서드를 외부 어셈블리에서도 사용할 수 있도록 Public으로 조정
+    Public Module ElementIdCompat
 
         ''' <summary>
         ''' ElementId를 Int32로 꺼내는 공용 함수
         ''' </summary>
-        <Runtime.CompilerServices.Extension>
+        <Extension>
         Public Function IntValue(id As ElementId) As Integer
             If id Is Nothing Then Return -1
 #If REVIT2025 Then
