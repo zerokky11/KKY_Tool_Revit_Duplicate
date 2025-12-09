@@ -6,11 +6,9 @@ Imports System.Collections.Generic
 Imports System.Diagnostics
 Imports System.IO
 Imports System.Linq
-Imports System.Runtime.CompilerServices
 Imports Autodesk.Revit.DB
 Imports Autodesk.Revit.UI
 Imports KKY_Tool_Revit.Exports
-Imports KKY_Tool_Revit.Infrastructure
 Imports Infrastructure
 Imports Services
 
@@ -117,14 +115,17 @@ Namespace UI.Hub
               .deleted = r.Deleted
             }).ToList()
 
-            Dim groupsWithDup As Integer = rows _
-              .Where(Function(r As DupRowDto) r.Candidate) _
-              .Select(Function(r As DupRowDto) r.GroupId) _
-              .Distinct() _
-              .Count()
+            ' Count 확장 메서드 모호성 제거를 위해 System.Linq.Enumerable 사용
+            Dim groupsWithDup As Integer = System.Linq.Enumerable.Count(
+                rows.Where(Function(r As DupRowDto) r.Candidate).
+                     Select(Function(r As DupRowDto) r.GroupId).
+                     Distinct()
+            )
 
-            ' Count 확장 메서드가 List.Count 프로퍼티와 충돌하지 않도록 명시적으로 람다 타입 지정
-            Dim candidates As Integer = rows.Count(Function(r As DupRowDto) r.Candidate)
+            Dim candidates As Integer = System.Linq.Enumerable.Count(
+                rows,
+                Function(r As DupRowDto) r.Candidate
+            )
             Dim total As Integer = rows.Count
 
             SendToWeb("dup:list", wireRows)
@@ -155,7 +156,16 @@ Namespace UI.Hub
             Try
                 If bb IsNot Nothing Then
                     Dim views = uiDoc.GetOpenUIViews()
-                    Dim target = views.Cast(Of UIView)().FirstOrDefault(Function(v As UIView) ElementIdCompat.IntValue(v.ViewId) = ElementIdCompat.IntValue(uiDoc.ActiveView.Id))
+                    Dim target As UIView = Nothing
+
+                    ' LINQ FirstOrDefault 모호성 회피를 위해 For Each로 검색
+                    For Each v As UIView In views
+                        If ElementIdCompat.IntValue(v.ViewId) = ElementIdCompat.IntValue(uiDoc.ActiveView.Id) Then
+                            target = v
+                            Exit For
+                        End If
+                    Next
+
                     If target IsNot Nothing Then
                         target.ZoomAndCenterRectangle(bb.Min, bb.Max)
                     Else
