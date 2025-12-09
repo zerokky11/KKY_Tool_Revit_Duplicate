@@ -140,7 +140,7 @@ Namespace UI.Hub
             Dim idVal As Integer = SafeInt(GetProp(payload, "id"))
             If idVal <= 0 Then Return
 
-            Dim elId As ElementId = ElementIdCompat.FromInt(idVal)
+            Dim elId As ElementId = Infrastructure.ElementIdCompat.FromInt(idVal)
             Dim el As Element = uiDoc.Document.GetElement(elId)
             If el Is Nothing Then
                 SendToWeb("host:warn", New With {.message = $"요소 {idVal} 을(를) 찾을 수 없습니다."})
@@ -160,7 +160,7 @@ Namespace UI.Hub
 
                     ' LINQ FirstOrDefault 모호성 회피를 위해 For Each로 검색
                     For Each v As UIView In views
-                        If ElementIdCompat.IntValue(v.ViewId) = ElementIdCompat.IntValue(uiDoc.ActiveView.Id) Then
+                        If Infrastructure.ElementIdCompat.IntValue(v.ViewId) = Infrastructure.ElementIdCompat.IntValue(uiDoc.ActiveView.Id) Then
                             target = v
                             Exit For
                         End If
@@ -196,7 +196,7 @@ Namespace UI.Hub
             Dim eidList As New List(Of ElementId)
             For Each i In ids
                 If i > 0 Then
-                    Dim eid As ElementId = ElementIdCompat.FromInt(i)
+                    Dim eid As ElementId = Infrastructure.ElementIdCompat.FromInt(i)
                     If doc.GetElement(eid) IsNot Nothing Then eidList.Add(eid)
                 End If
             Next
@@ -221,10 +221,10 @@ Namespace UI.Hub
 
             For Each eid In eidList
                 If doc.GetElement(eid) Is Nothing Then
-                    actuallyDeleted.Add(ElementIdCompat.IntValue(eid))
-                    Dim row = _lastRows.FirstOrDefault(Function(r As DupRowDto) r.ElementId = ElementIdCompat.IntValue(eid))
+                    actuallyDeleted.Add(Infrastructure.ElementIdCompat.IntValue(eid))
+                    Dim row = _lastRows.FirstOrDefault(Function(r As DupRowDto) r.ElementId = Infrastructure.ElementIdCompat.IntValue(eid))
                     If row IsNot Nothing Then row.Deleted = True
-                    SendToWeb("dup:deleted", New With {.id = ElementIdCompat.IntValue(eid)})
+                    SendToWeb("dup:deleted", New With {.id = Infrastructure.ElementIdCompat.IntValue(eid)})
                 End If
             Next
 
@@ -380,7 +380,7 @@ Namespace UI.Hub
                 Try
                     ' 상위 패밀리(호스트)에 붙은 서브컴포넌트는 스킵
                     If fi.SuperComponent IsNot Nothing Then Return True
-                    If _nestedSharedIds IsNot Nothing AndAlso _nestedSharedIds.Contains(ElementIdCompat.IntValue(fi.Id)) Then Return True
+                    If _nestedSharedIds IsNot Nothing AndAlso _nestedSharedIds.Contains(Infrastructure.ElementIdCompat.IntValue(fi.Id)) Then Return True
                 Catch
                 End Try
             End If
@@ -506,7 +506,7 @@ Namespace UI.Hub
 
         Private Shared Function SafeCategoryName(e As Element, cache As Dictionary(Of Integer, String)) As String
             If e Is Nothing OrElse e.Category Is Nothing Then Return ""
-            Dim id As Integer = ElementIdCompat.IntValue(e.Category.Id)
+            Dim id As Integer = Infrastructure.ElementIdCompat.IntValue(e.Category.Id)
             Dim s As String = Nothing
             If cache.TryGetValue(id, s) Then Return s
             s = e.Category.Name
@@ -517,7 +517,7 @@ Namespace UI.Hub
         Private Shared Function SafeFamilyName(e As Element, cache As Dictionary(Of Integer, String)) As String
             Dim fi = TryCast(e, FamilyInstance)
             If fi Is Nothing OrElse fi.Symbol Is Nothing OrElse fi.Symbol.Family Is Nothing Then Return ""
-            Dim id As Integer = ElementIdCompat.IntValue(fi.Symbol.Family.Id)
+            Dim id As Integer = Infrastructure.ElementIdCompat.IntValue(fi.Symbol.Family.Id)
             Dim s As String = Nothing
             If cache.TryGetValue(id, s) Then Return s
             s = fi.Symbol.Family.Name
@@ -528,7 +528,7 @@ Namespace UI.Hub
         Private Shared Function SafeTypeName(e As Element, cache As Dictionary(Of Integer, String)) As String
             Dim fi = TryCast(e, FamilyInstance)
             If fi IsNot Nothing AndAlso fi.Symbol IsNot Nothing Then
-                Dim id As Integer = ElementIdCompat.IntValue(fi.Symbol.Id)
+                Dim id As Integer = Infrastructure.ElementIdCompat.IntValue(fi.Symbol.Id)
                 Dim s As String = Nothing
                 If cache.TryGetValue(id, s) Then Return s
                 s = fi.Symbol.Name
@@ -544,7 +544,7 @@ Namespace UI.Hub
                 If p IsNot Nothing Then
                     Dim lvid As ElementId = p.AsElementId()
                     If lvid IsNot Nothing AndAlso lvid <> ElementId.InvalidElementId Then
-                        Return ElementIdCompat.IntValue(lvid)
+                        Return Infrastructure.ElementIdCompat.IntValue(lvid)
                     End If
                 End If
             Catch
@@ -554,7 +554,7 @@ Namespace UI.Hub
                 If pi IsNot Nothing Then
                     Dim id = TryCast(pi.GetValue(e, Nothing), ElementId)
                     If id IsNot Nothing AndAlso id <> ElementId.InvalidElementId Then
-                        Return ElementIdCompat.IntValue(id)
+                        Return Infrastructure.ElementIdCompat.IntValue(id)
                     End If
                 End If
             Catch
