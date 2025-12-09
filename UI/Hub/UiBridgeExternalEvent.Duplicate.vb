@@ -123,7 +123,8 @@ Namespace UI.Hub
               .Distinct() _
               .Count()
 
-            Dim candidates As Integer = rows.Count(Function(r) r.Candidate)
+            ' Count 확장 메서드가 List.Count 프로퍼티와 충돌하지 않도록 명시적으로 람다 타입 지정
+            Dim candidates As Integer = rows.Count(Function(r As DupRowDto) r.Candidate)
             Dim total As Integer = rows.Count
 
             SendToWeb("dup:list", wireRows)

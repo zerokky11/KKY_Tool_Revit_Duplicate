@@ -55,9 +55,9 @@ Namespace Services
             For Each e In elems
                 If ShouldSkipInsulation(e) Then Continue For ' 인슐레이션은 대상 제외
 
-                Dim key As String = BuildGroupKey(e)
-                If Not groups.ContainsKey(key) Then groups(key) = New List(Of Element)()
-                groups(key).Add(e)
+                Dim groupKey As String = BuildGroupKey(e) ' key 변수 이름 충돌 경고 방지
+                If Not groups.ContainsKey(groupKey) Then groups(groupKey) = New List(Of Element)()
+                groups(groupKey).Add(e)
             Next
 
             ' 결과로 평탄화

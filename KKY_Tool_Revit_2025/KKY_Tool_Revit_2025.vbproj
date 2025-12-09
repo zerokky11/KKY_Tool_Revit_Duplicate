@@ -72,6 +72,8 @@
     <Compile Include="..\Exports\DuplicateExport.vb" Link="Exports\DuplicateExport.vb" />
     <Compile Include="..\Infrastructure\ResourceExtractor.vb" Link="Infrastructure\ResourceExtractor.vb" />
     <Compile Include="..\Infrastructure\ExcelCore.vb" Link="Infrastructure\ExcelCore.vb" />
+    <!-- ElementIdCompat 확장 모듈을 2025 프로젝트에도 포함 -->
+    <Compile Include="..\Infrastructure\ElementIdCompat.vb" Link="Infrastructure\ElementIdCompat.vb" />
     <Compile Include="..\Services\DuplicateAnalysisService.vb" Link="Services\DuplicateAnalysisService.vb" />
     <Compile Include="..\Services\ConnectorDiagnosticsService.vb" Link="Services\ConnectorDiagnosticsService.vb" />
     <Compile Include="..\Services\ExportPointsService.vb" Link="Services\ExportPointsService.vb" />
