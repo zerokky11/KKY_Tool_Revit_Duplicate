@@ -105,7 +105,7 @@ Namespace UI.Hub
 
             _lastRows = rows
 
-            Dim wireRows = rows.Select(Function(r) New With {
+            Dim wireRows = rows.Select(Function(r As DupRowDto) New With {
               .groupId = r.GroupId,
               .elementId = r.ElementId,
               .category = r.Category,
@@ -117,11 +117,11 @@ Namespace UI.Hub
               .deleted = r.Deleted
             }).ToList()
 
-            Dim groupsWithDup As Integer = rows.
-              Where(Function(r) r.Candidate).
-              Select(Function(r) r.GroupId).
-              Distinct().
-              Count()
+            Dim groupsWithDup As Integer = rows _
+              .Where(Function(r As DupRowDto) r.Candidate) _
+              .Select(Function(r As DupRowDto) r.GroupId) _
+              .Distinct() _
+              .Count()
 
             Dim candidates As Integer = rows.Count(Function(r) r.Candidate)
             Dim total As Integer = rows.Count
@@ -154,7 +154,7 @@ Namespace UI.Hub
             Try
                 If bb IsNot Nothing Then
                     Dim views = uiDoc.GetOpenUIViews()
-                    Dim target = views.FirstOrDefault(Function(v) v.ViewId.IntValue() = uiDoc.ActiveView.Id.IntValue())
+                    Dim target = views.Cast(Of UIView)().FirstOrDefault(Function(v As UIView) v.ViewId.IntValue() = uiDoc.ActiveView.Id.IntValue())
                     If target IsNot Nothing Then
                         target.ZoomAndCenterRectangle(bb.Min, bb.Max)
                     Else
@@ -211,7 +211,7 @@ Namespace UI.Hub
             For Each eid In eidList
                 If doc.GetElement(eid) Is Nothing Then
                     actuallyDeleted.Add(eid.IntValue())
-                    Dim row = _lastRows.FirstOrDefault(Function(r) r.ElementId = eid.IntValue())
+                    Dim row = _lastRows.FirstOrDefault(Function(r As DupRowDto) r.ElementId = eid.IntValue())
                     If row IsNot Nothing Then row.Deleted = True
                     SendToWeb("dup:deleted", New With {.id = eid.IntValue()})
                 End If
@@ -269,7 +269,7 @@ Namespace UI.Hub
             _deleteOps.Pop()
 
             For Each i In lastPack
-                Dim r = _lastRows.FirstOrDefault(Function(x) x.ElementId = i)
+                Dim r = _lastRows.FirstOrDefault(Function(x As DupRowDto) x.ElementId = i)
                 If r IsNot Nothing Then r.Deleted = False
                 SendToWeb("dup:restored", New With {.id = i})
             Next
