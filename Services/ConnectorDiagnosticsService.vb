@@ -91,10 +91,11 @@ Namespace Services
                     For Each ro In refs
                         Dim rc As Connector = TryCast(ro, Connector)
                         If rc Is Nothing OrElse rc.Owner Is Nothing Then Continue For
-                        If rc.Owner.Id.IntegerValue = it.OwnerId Then Continue For
+                        If ElementIdCompat.IntValue(rc.Owner.Id) = it.OwnerId Then Continue For
 
-                        Dim aId = Math.Min(it.OwnerId, rc.Owner.Id.IntegerValue)
-                        Dim bId = Math.Max(it.OwnerId, rc.Owner.Id.IntegerValue)
+                        Dim rcOwnerId = ElementIdCompat.IntValue(rc.Owner.Id)
+                        Dim aId = Math.Min(it.OwnerId, rcOwnerId)
+                        Dim bId = Math.Max(it.OwnerId, rcOwnerId)
                         Dim key = aId.ToString() & "-" & bId.ToString()
                         If seenPair.Contains(key) Then Continue For
                         seenPair.Add(key)
@@ -165,8 +166,8 @@ Namespace Services
             Dim status As String = If(String.Equals(v1, v2, StringComparison.OrdinalIgnoreCase), "OK", "Mismatch")
 
             Return New Dictionary(Of String, Object)(StringComparer.Ordinal) From {
-                {"Id1", e1.Id.IntegerValue.ToString()},
-                {"Id2", e2.Id.IntegerValue.ToString()},
+                {"Id1", ElementIdCompat.IntValue(e1.Id).ToString()},
+                {"Id2", ElementIdCompat.IntValue(e2.Id).ToString()},
                 {"Category1", cat1},
                 {"Category2", cat2},
                 {"Family1", fam1},
@@ -233,7 +234,7 @@ Namespace Services
                     For Each o In cm.Connectors
                         Dim c As Connector = TryCast(o, Connector)
                         If c Is Nothing OrElse c.Origin Is Nothing Then Continue For
-                        list.Add(New ConnItem With {.Owner = e, .OwnerId = e.Id.IntegerValue, .Conn = c, .P = c.Origin, .IndexHint = idx})
+                        list.Add(New ConnItem With {.Owner = e, .OwnerId = ElementIdCompat.IntValue(e.Id), .Conn = c, .P = c.Origin, .IndexHint = idx})
                         idx += 1 : mep += 1
                     Next
                 Next
@@ -245,7 +246,7 @@ Namespace Services
                     For Each o In cm.Connectors
                         Dim c As Connector = TryCast(o, Connector)
                         If c Is Nothing OrElse c.Origin Is Nothing Then Continue For
-                        list.Add(New ConnItem With {.Owner = e, .OwnerId = e.Id.IntegerValue, .Conn = c, .P = c.Origin, .IndexHint = idx})
+                        list.Add(New ConnItem With {.Owner = e, .OwnerId = ElementIdCompat.IntValue(e.Id), .Conn = c, .P = c.Origin, .IndexHint = idx})
                         idx += 1 : fam += 1
                     Next
                 Next
@@ -276,7 +277,7 @@ Namespace Services
                             Dim rc As Connector = TryCast(ro, Connector)
                             If rc Is Nothing Then Continue For
                             If rc Is b Then Return True
-                            If rc.Owner IsNot Nothing AndAlso b.Owner IsNot Nothing AndAlso rc.Owner.Id.IntegerValue = b.Owner.Id.IntegerValue Then
+                            If rc.Owner IsNot Nothing AndAlso b.Owner IsNot Nothing AndAlso ElementIdCompat.IntValue(rc.Owner.Id) = ElementIdCompat.IntValue(b.Owner.Id) Then
                                 Return True
                             End If
                         Next

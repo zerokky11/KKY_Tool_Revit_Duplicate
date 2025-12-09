@@ -44,7 +44,7 @@ Namespace Infrastructure
         ''' </summary>
         Public Function FromLong(id As Long) As ElementId
 #If REVIT2025 Then
-            ' 2025: Int64 생성자 직접 사용
+            ' 2024/2025: Int64 생성자 직접 사용
             Return New ElementId(id)
 #Else
             ' 2019~2023: Int32 생성자 경로
