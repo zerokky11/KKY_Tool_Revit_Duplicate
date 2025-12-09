@@ -154,7 +154,7 @@ Namespace UI.Hub
             Try
                 If bb IsNot Nothing Then
                     Dim views = uiDoc.GetOpenUIViews()
-                    Dim target = views.Cast(Of UIView)().FirstOrDefault(Function(v As UIView) v.ViewId.IntValue() = uiDoc.ActiveView.Id.IntValue())
+                    Dim target = views.Cast(Of UIView)().FirstOrDefault(Function(v As UIView) ElementIdCompat.IntValue(v.ViewId) = ElementIdCompat.IntValue(uiDoc.ActiveView.Id))
                     If target IsNot Nothing Then
                         target.ZoomAndCenterRectangle(bb.Min, bb.Max)
                     Else
@@ -210,10 +210,10 @@ Namespace UI.Hub
 
             For Each eid In eidList
                 If doc.GetElement(eid) Is Nothing Then
-                    actuallyDeleted.Add(eid.IntValue())
-                    Dim row = _lastRows.FirstOrDefault(Function(r As DupRowDto) r.ElementId = eid.IntValue())
+                    actuallyDeleted.Add(ElementIdCompat.IntValue(eid))
+                    Dim row = _lastRows.FirstOrDefault(Function(r As DupRowDto) r.ElementId = ElementIdCompat.IntValue(eid))
                     If row IsNot Nothing Then row.Deleted = True
-                    SendToWeb("dup:deleted", New With {.id = eid.IntValue()})
+                    SendToWeb("dup:deleted", New With {.id = ElementIdCompat.IntValue(eid)})
                 End If
             Next
 
@@ -369,7 +369,7 @@ Namespace UI.Hub
                 Try
                     ' 상위 패밀리(호스트)에 붙은 서브컴포넌트는 스킵
                     If fi.SuperComponent IsNot Nothing Then Return True
-                    If _nestedSharedIds IsNot Nothing AndAlso _nestedSharedIds.Contains(fi.Id.IntValue()) Then Return True
+                    If _nestedSharedIds IsNot Nothing AndAlso _nestedSharedIds.Contains(ElementIdCompat.IntValue(fi.Id)) Then Return True
                 Catch
                 End Try
             End If
@@ -495,7 +495,7 @@ Namespace UI.Hub
 
         Private Shared Function SafeCategoryName(e As Element, cache As Dictionary(Of Integer, String)) As String
             If e Is Nothing OrElse e.Category Is Nothing Then Return ""
-            Dim id As Integer = e.Category.Id.IntValue()
+            Dim id As Integer = ElementIdCompat.IntValue(e.Category.Id)
             Dim s As String = Nothing
             If cache.TryGetValue(id, s) Then Return s
             s = e.Category.Name
@@ -506,7 +506,7 @@ Namespace UI.Hub
         Private Shared Function SafeFamilyName(e As Element, cache As Dictionary(Of Integer, String)) As String
             Dim fi = TryCast(e, FamilyInstance)
             If fi Is Nothing OrElse fi.Symbol Is Nothing OrElse fi.Symbol.Family Is Nothing Then Return ""
-            Dim id As Integer = fi.Symbol.Family.Id.IntValue()
+            Dim id As Integer = ElementIdCompat.IntValue(fi.Symbol.Family.Id)
             Dim s As String = Nothing
             If cache.TryGetValue(id, s) Then Return s
             s = fi.Symbol.Family.Name
@@ -517,7 +517,7 @@ Namespace UI.Hub
         Private Shared Function SafeTypeName(e As Element, cache As Dictionary(Of Integer, String)) As String
             Dim fi = TryCast(e, FamilyInstance)
             If fi IsNot Nothing AndAlso fi.Symbol IsNot Nothing Then
-                Dim id As Integer = fi.Symbol.Id.IntValue()
+                Dim id As Integer = ElementIdCompat.IntValue(fi.Symbol.Id)
                 Dim s As String = Nothing
                 If cache.TryGetValue(id, s) Then Return s
                 s = fi.Symbol.Name
@@ -533,7 +533,7 @@ Namespace UI.Hub
                 If p IsNot Nothing Then
                     Dim lvid As ElementId = p.AsElementId()
                     If lvid IsNot Nothing AndAlso lvid <> ElementId.InvalidElementId Then
-                        Return lvid.IntValue()
+                        Return ElementIdCompat.IntValue(lvid)
                     End If
                 End If
             Catch
@@ -543,7 +543,7 @@ Namespace UI.Hub
                 If pi IsNot Nothing Then
                     Dim id = TryCast(pi.GetValue(e, Nothing), ElementId)
                     If id IsNot Nothing AndAlso id <> ElementId.InvalidElementId Then
-                        Return id.IntValue()
+                        Return ElementIdCompat.IntValue(id)
                     End If
                 End If
             Catch

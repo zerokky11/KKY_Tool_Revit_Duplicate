@@ -92,7 +92,7 @@ Namespace Services
 
                     Dim d As New Dictionary(Of String, Object)(StringComparer.OrdinalIgnoreCase) From {
                         {"groupId", gno},
-                        {"id", e.Id.IntValue().ToString()},
+                        {"id", ElementIdCompat.IntValue(e.Id).ToString()},
                         {"category", cat},
                         {"family", fam},
                         {"type", typ},
@@ -235,8 +235,8 @@ Namespace Services
                     For Each ro In refs
                         Dim rc As Connector = TryCast(ro, Connector)
                         If rc Is Nothing OrElse rc.Owner Is Nothing Then Continue For
-                        Dim oid As Integer = rc.Owner.Id.IntValue()
-                        If oid <> e.Id.IntValue() Then setIds.Add(oid)
+                        Dim oid As Integer = ElementIdCompat.IntValue(rc.Owner.Id)
+                        If oid <> ElementIdCompat.IntValue(e.Id) Then setIds.Add(oid)
                     Next
                 Next
             Catch
@@ -258,7 +258,7 @@ Namespace Services
 
             Try
                 If e.Category IsNot Nothing Then
-                    Dim bic = CType(e.Category.Id.IntValue(), BuiltInCategory)
+                    Dim bic = CType(ElementIdCompat.IntValue(e.Category.Id), BuiltInCategory)
                     If bic = BuiltInCategory.OST_DuctInsulations OrElse bic = BuiltInCategory.OST_PipeInsulations Then
                         Return True
                     End If
@@ -273,7 +273,7 @@ Namespace Services
         Private Shared Function IsStructuralFoundation(e As Element) As Boolean
             Try
                 If e Is Nothing OrElse e.Category Is Nothing Then Return False
-                Dim bic = CType(e.Category.Id.IntValue(), BuiltInCategory)
+                Dim bic = CType(ElementIdCompat.IntValue(e.Category.Id), BuiltInCategory)
                 Return bic = BuiltInCategory.OST_StructuralFoundation
             Catch
             End Try
