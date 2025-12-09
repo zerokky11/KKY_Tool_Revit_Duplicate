@@ -10,6 +10,8 @@ Imports Autodesk.Revit.DB
 Imports Autodesk.Revit.UI
 Imports KKY_Tool_Revit.Exports
 Imports KKY_Tool_Revit.Infrastructure
+Imports Infrastructure
+Imports Services
 
 ' ✅ WPF 팝업(별칭 import로 Color 충돌 회피)
 Imports WPF = System.Windows
@@ -32,6 +34,7 @@ Namespace UI.Hub
         Private Shared _nestedSharedIds As HashSet(Of Integer) = Nothing
 
         Private Class DupRowDto
+            Public Property GroupId As Integer
             Public Property ElementId As Integer
             Public Property Category As String
             Public Property Family As String
@@ -54,119 +57,55 @@ Namespace UI.Hub
                 Return
             End If
 
-            Dim doc As Document = uiDoc.Document
-
-            ' 중첩 Shared 컴포넌트 목록 캐시
-            _nestedSharedIds = New HashSet(Of Integer)()
-            Try
-                Dim famCol As New FilteredElementCollector(doc)
-                famCol.OfClass(GetType(FamilyInstance)).WhereElementIsNotElementType()
-                For Each o As Element In famCol
-                    Dim fi As FamilyInstance = TryCast(o, FamilyInstance)
-                    If fi Is Nothing Then Continue For
-                    Try
-                        Dim subs = fi.GetSubComponentIds()
-                        If subs Is Nothing Then Continue For
-                        For Each sid As ElementId In subs
-                            _nestedSharedIds.Add(sid.IntegerValue)
-                        Next
-                    Catch
-                    End Try
-                Next
-            Catch
-            End Try
-
-            Dim tolFeet As Double = 1.0 / 64.0
-            Try
-                Dim tolObj = GetProp(payload, "tolFeet")
-                If tolObj IsNot Nothing Then tolFeet = Math.Max(0.000001, Convert.ToDouble(tolObj))
-            Catch
-            End Try
+            Dim result As List(Of Dictionary(Of String, Object)) = DuplicateAnalysisService.Run(app)
+            If result Is Nothing Then result = New List(Of Dictionary(Of String, Object))()
 
             Dim rows As New List(Of DupRowDto)()
-            Dim total As Integer = 0
-            Dim groupsWithDup As Integer = 0
-            Dim candidates As Integer = 0
 
-            Dim collector As New FilteredElementCollector(doc)
-            collector.WhereElementIsNotElementType()
+            For Each r In result
+                If r Is Nothing Then Continue For
 
-            Dim q = Function(x As Double) As Long
-                        Return CLng(Math.Round(x / tolFeet))
-                    End Function
+                Dim groupId As Integer = 0
+                Dim eid As Integer = 0
+                Dim catName As String = ""
+                Dim famName As String = ""
+                Dim typName As String = ""
+                Dim connCount As Integer = 0
+                Dim connIds As String = ""
+                Dim candidate As Boolean = False
 
-            Dim buckets As New Dictionary(Of String, List(Of ElementId))(StringComparer.Ordinal)
-            Dim catCache As New Dictionary(Of Integer, String)
-            Dim famCache As New Dictionary(Of Integer, String)
-            Dim typCache As New Dictionary(Of Integer, String)
-
-            For Each e As Element In collector
-                total += 1
-                If ShouldSkipForQuantity(e) Then Continue For
-                If e Is Nothing OrElse e.Category Is Nothing Then Continue For
-
-                Dim center As XYZ = TryGetCenter(e)
-                If center Is Nothing Then Continue For
-
-                Dim catName As String = SafeCategoryName(e, catCache)
-                Dim famName As String = SafeFamilyName(e, famCache)
-                Dim typName As String = SafeTypeName(e, typCache)
-                Dim lvl As Integer = TryGetLevelId(e)
-
-                Dim oriKey As String = GetOrientationKey(e)
-
-                Dim key As String =
-                  String.Concat(catName, "|",
-                                famName, "|",
-                                typName, "|",
-                                "O", oriKey, "|",
-                                "L", lvl.ToString(), "|",
-                                "Q(", q(center.X).ToString(), ",", q(center.Y).ToString(), ",", q(center.Z).ToString(), ")")
-
-                Dim list As List(Of ElementId) = Nothing
-                If Not buckets.TryGetValue(key, list) Then
-                    list = New List(Of ElementId)()
-                    buckets.Add(key, list)
+                Dim o As Object = Nothing
+                If r.TryGetValue("groupId", o) Then groupId = SafeInt(o)
+                If r.TryGetValue("id", o) Then eid = SafeInt(o)
+                If r.TryGetValue("category", o) AndAlso o IsNot Nothing Then catName = o.ToString()
+                If r.TryGetValue("family", o) AndAlso o IsNot Nothing Then famName = o.ToString()
+                If r.TryGetValue("type", o) AndAlso o IsNot Nothing Then typName = o.ToString()
+                If r.TryGetValue("connectedIds", o) AndAlso o IsNot Nothing Then connIds = o.ToString()
+                If r.TryGetValue("connectedCount", o) Then connCount = SafeInt(o)
+                If r.TryGetValue("candidate", o) Then
+                    Try
+                        candidate = Convert.ToBoolean(o)
+                    Catch
+                    End Try
                 End If
-                list.Add(e.Id)
-            Next
 
-            For Each kv In buckets
-                Dim ids As List(Of ElementId) = kv.Value
-                If ids.Count <= 1 Then Continue For
-
-                groupsWithDup += 1
-
-                For Each id As ElementId In ids
-                    Dim e As Element = doc.GetElement(id)
-                    If e Is Nothing Then Continue For
-
-                    Dim catName As String = SafeCategoryName(e, catCache)
-                    Dim famName As String = SafeFamilyName(e, famCache)
-                    Dim typName As String = SafeTypeName(e, typCache)
-
-                    Dim connIds = ids.
-                      Where(Function(x) x.IntegerValue <> id.IntegerValue).
-                      Select(Function(x) x.IntegerValue.ToString()).
-                      ToArray()
-
-                    rows.Add(New DupRowDto With {
-                      .ElementId = id.IntegerValue,
-                      .Category = catName,
-                      .Family = famName,
-                      .Type = typName,
-                      .ConnectedCount = connIds.Length,
-                      .ConnectedIds = String.Join(", ", connIds),
-                      .Candidate = True,
-                      .Deleted = False
-                    })
-                    candidates += 1
-                Next
+                rows.Add(New DupRowDto With {
+                  .GroupId = groupId,
+                  .ElementId = eid,
+                  .Category = catName,
+                  .Family = famName,
+                  .Type = typName,
+                  .ConnectedCount = connCount,
+                  .ConnectedIds = connIds,
+                  .Candidate = candidate,
+                  .Deleted = False
+                })
             Next
 
             _lastRows = rows
 
             Dim wireRows = rows.Select(Function(r) New With {
+              .groupId = r.GroupId,
               .elementId = r.ElementId,
               .category = r.Category,
               .family = r.Family,
@@ -176,6 +115,15 @@ Namespace UI.Hub
               .candidate = r.Candidate,
               .deleted = r.Deleted
             }).ToList()
+
+            Dim groupsWithDup As Integer = rows.
+              Where(Function(r) r.Candidate).
+              Select(Function(r) r.GroupId).
+              Distinct().
+              Count()
+
+            Dim candidates As Integer = rows.Count(Function(r) r.Candidate)
+            Dim total As Integer = rows.Count
 
             SendToWeb("dup:list", wireRows)
             SendToWeb("dup:result", New With {.scan = total, .groups = groupsWithDup, .candidates = candidates})
@@ -189,7 +137,7 @@ Namespace UI.Hub
             Dim idVal As Integer = SafeInt(GetProp(payload, "id"))
             If idVal <= 0 Then Return
 
-            Dim elId As New ElementId(idVal)
+            Dim elId As ElementId = ElementIdCompat.FromInt(idVal)
             Dim el As Element = uiDoc.Document.GetElement(elId)
             If el Is Nothing Then
                 SendToWeb("host:warn", New With {.message = $"요소 {idVal} 을(를) 찾을 수 없습니다."})
@@ -205,7 +153,7 @@ Namespace UI.Hub
             Try
                 If bb IsNot Nothing Then
                     Dim views = uiDoc.GetOpenUIViews()
-                    Dim target = views.FirstOrDefault(Function(v) v.ViewId.IntegerValue = uiDoc.ActiveView.Id.IntegerValue)
+                    Dim target = views.FirstOrDefault(Function(v) v.ViewId.IntValue() = uiDoc.ActiveView.Id.IntValue())
                     If target IsNot Nothing Then
                         target.ZoomAndCenterRectangle(bb.Min, bb.Max)
                     Else
@@ -236,7 +184,7 @@ Namespace UI.Hub
             Dim eidList As New List(Of ElementId)
             For Each i In ids
                 If i > 0 Then
-                    Dim eid As New ElementId(i)
+                    Dim eid As ElementId = ElementIdCompat.FromInt(i)
                     If doc.GetElement(eid) IsNot Nothing Then eidList.Add(eid)
                 End If
             Next
@@ -261,10 +209,10 @@ Namespace UI.Hub
 
             For Each eid In eidList
                 If doc.GetElement(eid) Is Nothing Then
-                    actuallyDeleted.Add(eid.IntegerValue)
-                    Dim row = _lastRows.FirstOrDefault(Function(r) r.ElementId = eid.IntegerValue)
+                    actuallyDeleted.Add(eid.IntValue())
+                    Dim row = _lastRows.FirstOrDefault(Function(r) r.ElementId = eid.IntValue())
                     If row IsNot Nothing Then row.Deleted = True
-                    SendToWeb("dup:deleted", New With {.id = eid.IntegerValue})
+                    SendToWeb("dup:deleted", New With {.id = eid.IntValue()})
                 End If
             Next
 
@@ -420,7 +368,7 @@ Namespace UI.Hub
                 Try
                     ' 상위 패밀리(호스트)에 붙은 서브컴포넌트는 스킵
                     If fi.SuperComponent IsNot Nothing Then Return True
-                    If _nestedSharedIds IsNot Nothing AndAlso _nestedSharedIds.Contains(fi.Id.IntegerValue) Then Return True
+                    If _nestedSharedIds IsNot Nothing AndAlso _nestedSharedIds.Contains(fi.Id.IntValue()) Then Return True
                 Catch
                 End Try
             End If
@@ -546,7 +494,7 @@ Namespace UI.Hub
 
         Private Shared Function SafeCategoryName(e As Element, cache As Dictionary(Of Integer, String)) As String
             If e Is Nothing OrElse e.Category Is Nothing Then Return ""
-            Dim id As Integer = e.Category.Id.IntegerValue
+            Dim id As Integer = e.Category.Id.IntValue()
             Dim s As String = Nothing
             If cache.TryGetValue(id, s) Then Return s
             s = e.Category.Name
@@ -557,7 +505,7 @@ Namespace UI.Hub
         Private Shared Function SafeFamilyName(e As Element, cache As Dictionary(Of Integer, String)) As String
             Dim fi = TryCast(e, FamilyInstance)
             If fi Is Nothing OrElse fi.Symbol Is Nothing OrElse fi.Symbol.Family Is Nothing Then Return ""
-            Dim id As Integer = fi.Symbol.Family.Id.IntegerValue
+            Dim id As Integer = fi.Symbol.Family.Id.IntValue()
             Dim s As String = Nothing
             If cache.TryGetValue(id, s) Then Return s
             s = fi.Symbol.Family.Name
@@ -568,7 +516,7 @@ Namespace UI.Hub
         Private Shared Function SafeTypeName(e As Element, cache As Dictionary(Of Integer, String)) As String
             Dim fi = TryCast(e, FamilyInstance)
             If fi IsNot Nothing AndAlso fi.Symbol IsNot Nothing Then
-                Dim id As Integer = fi.Symbol.Id.IntegerValue
+                Dim id As Integer = fi.Symbol.Id.IntValue()
                 Dim s As String = Nothing
                 If cache.TryGetValue(id, s) Then Return s
                 s = fi.Symbol.Name
@@ -584,7 +532,7 @@ Namespace UI.Hub
                 If p IsNot Nothing Then
                     Dim lvid As ElementId = p.AsElementId()
                     If lvid IsNot Nothing AndAlso lvid <> ElementId.InvalidElementId Then
-                        Return lvid.IntegerValue
+                        Return lvid.IntValue()
                     End If
                 End If
             Catch
@@ -594,7 +542,7 @@ Namespace UI.Hub
                 If pi IsNot Nothing Then
                     Dim id = TryCast(pi.GetValue(e, Nothing), ElementId)
                     If id IsNot Nothing AndAlso id <> ElementId.InvalidElementId Then
-                        Return id.IntegerValue
+                        Return id.IntValue()
                     End If
                 End If
             Catch
